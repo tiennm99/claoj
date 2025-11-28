@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <climits>
+#include <set>
 using namespace std;
 
 typedef long long ll;
@@ -22,26 +23,26 @@ bool isPossible(ll D, const vector<Point> &chargers, const Point &start, ll N) {
     ll min_v = v0 - N;
     ll max_v = v0 + N;
 
-    vector<pair<ll, ll> > test_points = {
-        {min_u, min_v}, {min_u, max_v}, {max_u, min_v}, {max_u, max_v},
-        {u0, v0}, {min_u, v0}, {max_u, v0}, {u0, min_v}, {u0, max_v}
-    };
+    set<pair<ll, ll> > test_points;
+
+    test_points.insert({min_u, min_v});
+    test_points.insert({min_u, max_v});
+    test_points.insert({max_u, min_v});
+    test_points.insert({max_u, max_v});
 
     for (const Point &c: chargers) {
         ll cu = c.x + c.y;
         ll cv = c.x - c.y;
 
-        vector<pair<ll, ll> > boundary_points = {
+        vector<pair<ll, ll> > corners = {
             {cu - D, cv - D}, {cu - D, cv + D},
-            {cu + D, cv - D}, {cu + D, cv + D},
-            {cu - D, cv}, {cu + D, cv},
-            {cu, cv - D}, {cu, cv + D}
+            {cu + D, cv - D}, {cu + D, cv + D}
         };
 
-        for (auto [u, v]: boundary_points) {
-            u = max(min_u, min(max_u, u));
-            v = max(min_v, min(max_v, v));
-            test_points.push_back({u, v});
+        for (auto [u, v]: corners) {
+            ll u_clamped = max(min_u, min(max_u, u));
+            ll v_clamped = max(min_v, min(max_v, v));
+            test_points.insert({u_clamped, v_clamped});
         }
     }
 
@@ -86,16 +87,16 @@ int main() {
     ll left = 0;
     ll right = 4e9;
 
-    while (left <= right) {
-        ll mid = left + (right - left) / 2;
+    while (left < right) {
+        ll mid = left + (right - left + 1) / 2;
         if (isPossible(mid, chargers, start, N)) {
-            left = mid + 1;
+            left = mid;
         } else {
             right = mid - 1;
         }
     }
 
-    cout << right << endl;
+    cout << left << endl;
 
     return 0;
 }
