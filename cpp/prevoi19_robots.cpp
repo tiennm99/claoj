@@ -16,8 +16,6 @@ ll manhattan(const Point &a, const Point &b) {
 }
 
 bool isPossible(ll D, const vector<Point> &chargers, const Point &start, ll N) {
-    if (D == 0) return true;
-
     ll u0 = start.x + start.y;
     ll v0 = start.x - start.y;
     ll min_u = u0 - N;
@@ -27,61 +25,46 @@ bool isPossible(ll D, const vector<Point> &chargers, const Point &start, ll N) {
 
     set<pair<ll, ll> > candidates;
 
-    vector<pair<ll, ll> > base_points = {
-        {min_u, min_v}, {min_u, max_v}, {max_u, min_v}, {max_u, max_v},
-        {u0, v0}, {min_u, v0}, {max_u, v0}, {u0, min_v}, {u0, max_v}
-    };
-
-    for (auto [u, v]: base_points) {
-        candidates.insert({u, v});
-    }
+    candidates.insert({min_u, min_v});
+    candidates.insert({min_u, max_v});
+    candidates.insert({max_u, min_v});
+    candidates.insert({max_u, max_v});
 
     for (const Point &c: chargers) {
         ll cu = c.x + c.y;
         ll cv = c.x - c.y;
 
-        vector<pair<ll, ll> > charger_points = {
-            {cu - D, cv}, {cu + D, cv}, {cu, cv - D}, {cu, cv + D},
-            {cu - D, cv - D}, {cu - D, cv + D}, {cu + D, cv - D}, {cu + D, cv + D}
+        vector<pair<ll, ll> > corners = {
+            {cu - D, cv - D}, {cu - D, cv + D},
+            {cu + D, cv - D}, {cu + D, cv + D}
         };
 
-        for (auto [u, v]: charger_points) {
-            u = max(min_u, min(max_u, u));
-            v = max(min_v, min(max_v, v));
-            candidates.insert({u, v});
+        for (auto [u, v]: corners) {
+            ll u_clamped = max(min_u, min(max_u, u));
+            ll v_clamped = max(min_v, min(max_v, v));
+            candidates.insert({u_clamped, v_clamped});
         }
     }
 
     for (auto [u, v]: candidates) {
-        for (ll du = -1; du <= 1; du++) {
-            for (ll dv = -1; dv <= 1; dv++) {
-                ll test_u = u + du;
-                ll test_v = v + dv;
+        // if (u < min_u || u > max_u || v < min_v || v > max_v) continue;
+        if ((u + v) % 2 != 0) continue;
 
-                if (test_u < min_u || test_u > max_u || test_v < min_v || test_v > max_v) {
-                    continue;
-                }
+        ll x = (u + v) / 2;
+        ll y = (u - v) / 2;
+        Point p = {x, y};
 
-                if ((test_u + test_v) % 2 != 0) continue;
+        if (manhattan(p, start) > N) continue;
 
-                ll x = (test_u + test_v) / 2;
-                ll y = (test_u - test_v) / 2;
-                Point p = {x, y};
-
-                if (manhattan(p, start) > N) continue;
-
-                bool valid = true;
-                for (const Point &c: chargers) {
-                    if (manhattan(p, c) < D) {
-                        valid = false;
-                        break;
-                    }
-                }
-                if (valid) return true;
+        bool valid = true;
+        for (const Point &c: chargers) {
+            if (manhattan(p, c) < D) {
+                valid = false;
+                break;
             }
         }
+        if (valid) return true;
     }
-
     return false;
 }
 
