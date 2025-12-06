@@ -1,70 +1,118 @@
-// This solution is WIP. Not get full point.
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <climits>
-#include <set>
+#include <bits/stdc++.h>
 using namespace std;
-
 typedef long long ll;
 
-struct Point {
-    ll x, y;
-};
+int U;
+ll N;
+vector<ll> cu, cv;
+ll u0, v0, min_u, max_u, min_v, max_v;
+int parity;
 
-ll manhattan(const Point &a, const Point &b) {
-    return abs(a.x - b.x) + abs(a.y - b.y);
+vector<int> tree, lazy;
+vector<ll> vs;
+
+void push(int v) {
+    if (lazy[v]) {
+        tree[2 * v] += lazy[v];
+        lazy[2 * v] += lazy[v];
+        tree[2 * v + 1] += lazy[v];
+        lazy[2 * v + 1] += lazy[v];
+        lazy[v] = 0;
+    }
 }
 
-bool isPossible(ll D, const vector<Point> &chargers, const Point &start, ll N) {
-    ll u0 = start.x + start.y;
-    ll v0 = start.x - start.y;
-    ll min_u = u0 - N;
-    ll max_u = u0 + N;
-    ll min_v = v0 - N;
-    ll max_v = v0 + N;
+void update(int v, int tl, int tr, int l, int r, int delta) {
+    if (l > r) return;
+    if (l == tl && r == tr) {
+        tree[v] += delta;
+        lazy[v] += delta;
+        return;
+    }
+    push(v);
+    int tm = (tl + tr) / 2;
+    update(2 * v, tl, tm, l, min(r, tm), delta);
+    update(2 * v + 1, tm + 1, tr, max(l, tm + 1), r, delta);
+    tree[v] = min(tree[2 * v], tree[2 * v + 1]);
+}
 
-    set<pair<ll, ll> > candidates;
+bool hasValidGap(int v, int tl, int tr, int l, int r, ll u_lo, ll u_hi) {
+    if (l > r || tree[v] > 0) return false;
+    if (tl == tr) {
+        ll v_lo = vs[tl];
+        ll v_hi = vs[tl + 1] - 1;
+        if (u_hi > u_lo || v_hi > v_lo) return true;
+        return ((u_lo + v_lo) % 2 + 2) % 2 == parity;
+    }
+    push(v);
+    int tm = (tl + tr) / 2;
+    if (hasValidGap(2 * v, tl, tm, l, min(r, tm), u_lo, u_hi)) return true;
+    return hasValidGap(2 * v + 1, tm + 1, tr, max(l, tm + 1), r, u_lo, u_hi);
+}
 
-    candidates.insert({min_u, min_v});
-    candidates.insert({min_u, max_v});
-    candidates.insert({max_u, min_v});
-    candidates.insert({max_u, max_v});
+bool check(ll D) {
+    if (D == 0) return true;
 
-    for (const Point &c: chargers) {
-        ll cu = c.x + c.y;
-        ll cv = c.x - c.y;
+    vs.clear();
+    vs.push_back(min_v);
+    vs.push_back(max_v + 1);
 
-        vector<pair<ll, ll> > corners = {
-            {cu - D, cv - D}, {cu - D, cv + D},
-            {cu + D, cv - D}, {cu + D, cv + D}
-        };
+    for (int i = 0; i < U; i++) {
+        ll vlo = max(min_v, cv[i] - D + 1);
+        ll vhi = min(max_v, cv[i] + D - 1);
+        if (vlo <= vhi) {
+            vs.push_back(vlo);
+            vs.push_back(vhi + 1);
+        }
+    }
+    sort(vs.begin(), vs.end());
+    vs.erase(unique(vs.begin(), vs.end()), vs.end());
 
-        for (auto [u, v]: corners) {
-            ll u_clamped = max(min_u, min(max_u, u));
-            ll v_clamped = max(min_v, min(max_v, v));
-            candidates.insert({u_clamped, v_clamped});
+    int M = vs.size() - 1;
+    if (M <= 0) return true;
+
+    tree.assign(4 * M + 10, 0);
+    lazy.assign(4 * M + 10, 0);
+
+    auto getIdx = [&](ll v) { return lower_bound(vs.begin(), vs.end(), v) - vs.begin(); };
+
+    vector<tuple<ll, int, int, int> > events;
+    for (int i = 0; i < U; i++) {
+        ll ulo = max(min_u, cu[i] - D + 1);
+        ll uhi = min(max_u, cu[i] + D - 1);
+        ll vlo = max(min_v, cv[i] - D + 1);
+        ll vhi = min(max_v, cv[i] + D - 1);
+
+        if (ulo <= uhi && vlo <= vhi) {
+            int vl_idx = getIdx(vlo);
+            int vh_idx = getIdx(vhi + 1) - 1;
+            if (vl_idx <= vh_idx && vh_idx < M) {
+                events.push_back({ulo, 0, vl_idx, vh_idx});
+                events.push_back({uhi + 1, 1, vl_idx, vh_idx});
+            }
         }
     }
 
-    for (auto [u, v]: candidates) {
-        // if (u < min_u || u > max_u || v < min_v || v > max_v) continue;
-        if ((u + v) % 2 != 0) continue;
+    events.push_back({min_u, -1, 0, 0});
+    events.push_back({max_u + 1, 2, 0, 0});
+    sort(events.begin(), events.end());
 
-        ll x = (u + v) / 2;
-        ll y = (u - v) / 2;
-        Point p = {x, y};
+    int v_start = getIdx(min_v);
+    int v_end = getIdx(max_v + 1) - 1;
+    if (v_start > v_end || v_end >= M) return true;
 
-        if (manhattan(p, start) > N) continue;
+    ll prev_u = min_u;
 
-        bool valid = true;
-        for (const Point &c: chargers) {
-            if (manhattan(p, c) < D) {
-                valid = false;
-                break;
-            }
+    for (auto &[u, type, vl, vh]: events) {
+        if (u > max_u + 1) break;
+
+        if (prev_u <= max_u && prev_u < u) {
+            ll u_hi = min(u - 1, max_u);
+            if (hasValidGap(1, 0, M - 1, v_start, v_end, prev_u, u_hi)) return true;
         }
-        if (valid) return true;
+
+        if (type == 0) update(1, 0, M - 1, vl, vh, 1);
+        else if (type == 1) update(1, 0, M - 1, vl, vh, -1);
+        prev_u = u;
     }
     return false;
 }
@@ -73,37 +121,33 @@ int main() {
     ios_base::sync_with_stdio(false);
     cin.tie(NULL);
 
-    int U;
-    ll N;
     cin >> U >> N;
+    cu.resize(U);
+    cv.resize(U);
 
-    vector<Point> chargers(U);
     for (int i = 0; i < U; i++) {
-        cin >> chargers[i].x >> chargers[i].y;
+        ll x, y;
+        cin >> x >> y;
+        cu[i] = x + y;
+        cv[i] = x - y;
     }
 
-    Point start;
-    cin >> start.x >> start.y;
+    ll sx, sy;
+    cin >> sx >> sy;
+    u0 = sx + sy;
+    v0 = sx - sy;
+    min_u = u0 - N;
+    max_u = u0 + N;
+    min_v = v0 - N;
+    max_v = v0 + N;
+    parity = ((u0 + v0) % 2 + 2) % 2;
 
-    ll max_dist = 0;
-    for (const Point &c: chargers) {
-        max_dist = max(max_dist, manhattan(start, c));
+    ll left = 0, right = 4e9;
+    while (left < right) {
+        ll mid = left + (right - left + 1) / 2;
+        if (check(mid)) left = mid;
+        else right = mid - 1;
     }
-    ll upper_bound = max_dist + N + 1;
-
-    ll left = 0;
-    ll right = upper_bound;
-
-    while (left <= right) {
-        ll mid = left + (right - left) / 2;
-        if (isPossible(mid, chargers, start, N)) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-    }
-
-    cout << right << endl;
-
+    cout << left << endl;
     return 0;
 }
