@@ -1,152 +1,110 @@
-// This solution is WIP. Not get full point.
 #include <bits/stdc++.h>
 using namespace std;
 
-using i128 = __int128;
+typedef long long ll;
 
-string to_str(i128 x) {
-    if (x == 0) return "0";
-    string s;
-    bool neg = false;
-    if (x < 0) {
-        neg = true;
-        x = -x;
-    }
-    while (x > 0) {
-        s += '0' + (x % 10);
-        x /= 10;
-    }
-    if (neg) s += '-';
-    reverse(s.begin(), s.end());
-    return s;
+ll calc(ll a, char op, ll b) {
+    if (op == '+') return a + b;
+    if (op == '-') return a - b;
+    return a * b;
 }
 
-vector<pair<i128, string> > get_all(int l, int r, const vector<i128> &nums, const vector<string> &num_strs,
-                                    const vector<char> &ops) {
-    if (l == r) {
-        return {{nums[l], num_strs[l]}};
-    }
-    vector<pair<i128, string> > res;
-    for (int m = l; m < r; m++) {
-        auto lefts = get_all(l, m, nums, num_strs, ops);
-        auto rights = get_all(m + 1, r, nums, num_strs, ops);
-        for (auto &le: lefts) {
-            for (auto &ri: rights) {
-                i128 v;
-                char op = ops[m];
-                if (op == '+') v = le.first + ri.first;
-                else if (op == '-') v = le.first - ri.first;
-                else v = le.first * ri.first;
-                string left_str = le.second;
-                if (m > l) left_str = "(" + left_str + ")";
-                string right_str = ri.second;
-                if (r > m + 1) right_str = "(" + right_str + ")";
-                string s = left_str + op + right_str;
-                res.push_back({v, s});
+vector<pair<ll, string> > getAll(vector<ll> &nums, vector<char> &ops) {
+    int sz = nums.size();
+    vector<pair<ll, string> > result;
+    auto ts = [](ll x) { return to_string(x); };
+    set<ll> seen;
+
+    if (sz == 2) {
+        ll v = calc(nums[0], ops[0], nums[1]);
+        result.push_back({v, ts(nums[0]) + ops[0] + ts(nums[1])});
+    } else if (sz == 3) {
+        ll a = nums[0], b = nums[1], c = nums[2];
+        char o1 = ops[0], o2 = ops[1];
+        ll v1 = calc(a, o1, calc(b, o2, c));
+        ll v2 = calc(calc(a, o1, b), o2, c);
+        string s1 = ts(a) + o1 + "(" + ts(b) + o2 + ts(c) + ")";
+        string s2 = "(" + ts(a) + o1 + ts(b) + ")" + o2 + ts(c);
+        result.push_back({v1, s1});
+        seen.insert(v1);
+        if (!seen.count(v2)) {
+            seen.insert(v2);
+            result.push_back({v2, s2});
+        }
+    } else {
+        ll a = nums[0], b = nums[1], c = nums[2], d = nums[3];
+        char o1 = ops[0], o2 = ops[1], o3 = ops[2];
+        vector<pair<ll, string> > all = {
+            {calc(a, o1, calc(b, o2, calc(c, o3, d))), ts(a) + o1 + "(" + ts(b) + o2 + "(" + ts(c) + o3 + ts(d) + "))"},
+            {calc(a, o1, calc(calc(b, o2, c), o3, d)), ts(a) + o1 + "((" + ts(b) + o2 + ts(c) + ")" + o3 + ts(d) + ")"},
+            {
+                calc(calc(a, o1, b), o2, calc(c, o3, d)),
+                "(" + ts(a) + o1 + ts(b) + ")" + o2 + "(" + ts(c) + o3 + ts(d) + ")"
+            },
+            {calc(calc(a, o1, calc(b, o2, c)), o3, d), "(" + ts(a) + o1 + "(" + ts(b) + o2 + ts(c) + "))" + o3 + ts(d)},
+            {calc(calc(calc(a, o1, b), o2, c), o3, d), "((" + ts(a) + o1 + ts(b) + ")" + o2 + ts(c) + ")" + o3 + ts(d)}
+        };
+        for (auto &p: all) {
+            if (!seen.count(p.first)) {
+                seen.insert(p.first);
+                result.push_back(p);
             }
         }
     }
-    return res;
-}
-
-vector<int> matchL, matchR;
-vector<bool> vis;
-
-bool dfs(int u, const vector<vector<int> > &g) {
-    for (int v: g[u]) {
-        if (vis[v]) continue;
-        vis[v] = true;
-        if (matchR[v] == -1 || dfs(matchR[v], g)) {
-            matchL[u] = v;
-            matchR[v] = u;
-            return true;
-        }
-    }
-    return false;
+    return result;
 }
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
 
     int n;
     cin >> n;
-    vector<map<i128, string> > all_poss(n);
-    vector<string> expressions(n);
-    for (int i = 0; i < n; i++) {
-        cin >> expressions[i];
-    }
+    vector<vector<pair<ll, string> > > exprs(n);
 
     for (int i = 0; i < n; i++) {
-        string s = expressions[i];
-        vector<string> num_strs;
+        string s;
+        cin >> s;
+        vector<ll> nums;
         vector<char> ops;
-        string cur = "";
+        ll num = 0;
         for (char c: s) {
-            if (isdigit(c)) {
-                cur += c;
-            } else {
-                if (!cur.empty()) {
-                    num_strs.push_back(cur);
-                }
+            if (isdigit(c)) num = num * 10 + (c - '0');
+            else {
+                nums.push_back(num);
+                num = 0;
                 ops.push_back(c);
-                cur = "";
             }
         }
-        if (!cur.empty()) {
-            num_strs.push_back(cur);
-        }
-        int k = num_strs.size();
-        vector<i128> nums(k);
-        for (int j = 0; j < k; j++) {
-            i128 val = 0;
-            for (char d: num_strs[j]) {
-                val = val * 10 + (d - '0');
+        nums.push_back(num);
+        exprs[i] = getAll(nums, ops);
+    }
+
+    vector<int> order(n);
+    iota(order.begin(), order.end(), 0);
+    sort(order.begin(), order.end(), [&](int a, int b) { return exprs[a].size() < exprs[b].size(); });
+
+    vector<string> result(n);
+    set<ll> used;
+
+    function<bool(int)> solve = [&](int idx) -> bool {
+        if (idx == n) return true;
+        int i = order[idx];
+        for (auto &p: exprs[i]) {
+            if (!used.count(p.first)) {
+                used.insert(p.first);
+                result[i] = p.second;
+                if (solve(idx + 1)) return true;
+                used.erase(p.first);
             }
-            nums[j] = val;
         }
-        auto res = get_all(0, k - 1, nums, num_strs, ops);
-        for (auto &p: res) {
-            all_poss[i][p.first] = p.second;
-        }
-    }
+        return false;
+    };
 
-    set<i128> all_vals_set;
-    for (auto &mp: all_poss) {
-        for (auto &p: mp) {
-            all_vals_set.insert(p.first);
-        }
-    }
-    vector<i128> id_to_val(all_vals_set.begin(), all_vals_set.end());
-    int m = id_to_val.size();
-    map<i128, int> val_id;
-    for (int j = 0; j < m; j++) {
-        val_id[id_to_val[j]] = j;
-    }
-
-    vector<vector<int> > g(n);
-    for (int i = 0; i < n; i++) {
-        for (auto &p: all_poss[i]) {
-            g[i].push_back(val_id[p.first]);
-        }
-    }
-
-    matchL.assign(n, -1);
-    matchR.assign(m, -1);
-    int cnt = 0;
-    for (int u = 0; u < n; u++) {
-        vis.assign(m, false);
-        if (dfs(u, g)) cnt++;
-    }
-
-    if (cnt == n) {
-        for (int i = 0; i < n; i++) {
-            i128 val = id_to_val[matchL[i]];
-            string s = all_poss[i][val];
-            cout << s << endl;
-        }
+    if (solve(0)) {
+        for (auto &s: result) cout << s << "\n";
     } else {
-        cout << "NO SOLUTION" << endl;
+        cout << "NO SOLUTION\n";
     }
 
     return 0;
