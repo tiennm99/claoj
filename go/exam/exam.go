@@ -68,9 +68,9 @@ func getAll(nums []int64, ops []byte) []Pair {
 	return result
 }
 
-func main() {
-	reader := bufio.NewReader(os.Stdin)
-	writer := bufio.NewWriter(os.Stdout)
+func exam(in *os.File, out *os.File) {
+	reader := bufio.NewReader(in)
+	writer := bufio.NewWriter(out)
 	defer writer.Flush()
 
 	var n int
@@ -135,4 +135,8 @@ func main() {
 	} else {
 		fmt.Fprintln(writer, "NO SOLUTION")
 	}
+}
+
+func main() {
+	exam(os.Stdin, os.Stdout)
 }
