@@ -29,11 +29,12 @@ func ts(x int64) string {
 
 func getAll(nums []int64, ops []byte) []Pair {
 	sz := len(nums)
-	var all []Pair
+	var result []Pair
+	seen := make(map[int64]bool)
 
 	if sz == 2 {
 		v := calc(nums[0], ops[0], nums[1])
-		all = append(all, Pair{v, ts(nums[0]) + string(ops[0]) + ts(nums[1])})
+		result = append(result, Pair{v, ts(nums[0]) + string(ops[0]) + ts(nums[1])})
 	} else if sz == 3 {
 		a, b, c := nums[0], nums[1], nums[2]
 		o1, o2 := ops[0], ops[1]
@@ -41,31 +42,36 @@ func getAll(nums []int64, ops []byte) []Pair {
 		v2 := calc(calc(a, o1, b), o2, c)
 		s1 := ts(a) + string(o1) + "(" + ts(b) + string(o2) + ts(c) + ")"
 		s2 := "(" + ts(a) + string(o1) + ts(b) + ")" + string(o2) + ts(c)
-		all = append(all, Pair{v1, s1}, Pair{v2, s2})
+		result = append(result, Pair{v1, s1})
+		seen[v1] = true
+		if !seen[v2] {
+			seen[v2] = true
+			result = append(result, Pair{v2, s2})
+		}
 	} else {
 		a, b, c, d := nums[0], nums[1], nums[2], nums[3]
 		o1, o2, o3 := ops[0], ops[1], ops[2]
-		all = []Pair{
+		all := []Pair{
 			{calc(a, o1, calc(b, o2, calc(c, o3, d))), ts(a) + string(o1) + "(" + ts(b) + string(o2) + "(" + ts(c) + string(o3) + ts(d) + "))"},
 			{calc(a, o1, calc(calc(b, o2, c), o3, d)), ts(a) + string(o1) + "((" + ts(b) + string(o2) + ts(c) + ")" + string(o3) + ts(d) + ")"},
 			{calc(calc(a, o1, b), o2, calc(c, o3, d)), "(" + ts(a) + string(o1) + ts(b) + ")" + string(o2) + "(" + ts(c) + string(o3) + ts(d) + ")"},
 			{calc(calc(a, o1, calc(b, o2, c)), o3, d), "(" + ts(a) + string(o1) + "(" + ts(b) + string(o2) + ts(c) + "))" + string(o3) + ts(d)},
 			{calc(calc(calc(a, o1, b), o2, c), o3, d), "((" + ts(a) + string(o1) + ts(b) + ")" + string(o2) + ts(c) + ")" + string(o3) + ts(d)},
 		}
-	}
-
-	sort.SliceStable(all, func(i, j int) bool {
-		return all[i].val < all[j].val
-	})
-
-	var result []Pair
-	seen := make(map[int64]bool)
-	for _, p := range all {
-		if !seen[p.val] {
-			seen[p.val] = true
-			result = append(result, p)
+		for _, p := range all {
+			if !seen[p.val] {
+				seen[p.val] = true
+				result = append(result, p)
+			}
 		}
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].val != result[j].val {
+			return result[i].val < result[j].val
+		}
+		return result[i].str < result[j].str
+	})
 
 	return result
 }
@@ -104,13 +110,8 @@ func exam(in *os.File, out *os.File) {
 	for i := 0; i < n; i++ {
 		order[i] = i
 	}
-
 	sort.Slice(order, func(i, j int) bool {
-		li, lj := len(exprs[order[i]]), len(exprs[order[j]])
-		if li != lj {
-			return li < lj
-		}
-		return order[i] < order[j]
+		return len(exprs[order[i]]) < len(exprs[order[j]])
 	})
 
 	result := make([]string, n)
@@ -145,5 +146,8 @@ func exam(in *os.File, out *os.File) {
 }
 
 func main() {
+	// CLAOJ check by token so this code didn't pass all testcases.
+	// But it worked on VNOJ (https://oj.vnoi.info/problem/voiexam).
+	// So I keep it as an unofficial solution.
 	exam(os.Stdin, os.Stdout)
 }
